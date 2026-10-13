@@ -5,9 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.view.View;
-import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -21,8 +19,7 @@ public class PracticeActivity extends AppCompatActivity {
 
     private static final int TOTAL_QUESTIONS = 10;
 
-    private TextView tvProgress, tvQuestion, tvTimer, tvResult;
-    private EditText etAnswer;
+    private TextView tvProgress, tvQuestion, tvTimer, tvResult, tvAnswer;
     private Button btnSubmit, btnNext;
     private LinearLayout layoutResult;
 
@@ -32,6 +29,7 @@ public class PracticeActivity extends AppCompatActivity {
     private long startTime;
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private boolean isAnswered = false;
+    private final StringBuilder answerBuffer = new StringBuilder();
 
     private final Runnable timerRunnable = new Runnable() {
         @Override
@@ -51,10 +49,35 @@ public class PracticeActivity extends AppCompatActivity {
         tvQuestion = findViewById(R.id.tvQuestion);
         tvTimer = findViewById(R.id.tvTimer);
         tvResult = findViewById(R.id.tvResult);
-        etAnswer = findViewById(R.id.etAnswer);
+        tvAnswer = findViewById(R.id.tvAnswer);
         btnSubmit = findViewById(R.id.btnSubmit);
         btnNext = findViewById(R.id.btnNext);
         layoutResult = findViewById(R.id.layoutResult);
+
+        int[] digitIds = {R.id.btn0, R.id.btn1, R.id.btn2, R.id.btn3, R.id.btn4,
+                R.id.btn5, R.id.btn6, R.id.btn7, R.id.btn8, R.id.btn9};
+        for (int i = 0; i < digitIds.length; i++) {
+            final String digit = String.valueOf(i);
+            findViewById(digitIds[i]).setOnClickListener(v -> {
+                if (isAnswered) return;
+                if (answerBuffer.length() < 6) {
+                    answerBuffer.append(digit);
+                    tvAnswer.setText(answerBuffer.toString());
+                }
+            });
+        }
+        findViewById(R.id.btnBack).setOnClickListener(v -> {
+            if (isAnswered) return;
+            if (answerBuffer.length() > 0) {
+                answerBuffer.deleteCharAt(answerBuffer.length() - 1);
+                tvAnswer.setText(answerBuffer.toString());
+            }
+        });
+        findViewById(R.id.btnClear).setOnClickListener(v -> {
+            if (isAnswered) return;
+            answerBuffer.setLength(0);
+            tvAnswer.setText("");
+        });
 
         generateQuestions();
         startTime = System.currentTimeMillis();
@@ -63,14 +86,6 @@ public class PracticeActivity extends AppCompatActivity {
 
         btnSubmit.setOnClickListener(v -> submitAnswer());
         btnNext.setOnClickListener(v -> nextQuestion());
-
-        etAnswer.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE && !isAnswered) {
-                submitAnswer();
-                return true;
-            }
-            return false;
-        });
     }
 
     private void generateQuestions() {
@@ -90,17 +105,16 @@ public class PracticeActivity extends AppCompatActivity {
         Question q = questions.get(currentIndex);
         tvProgress.setText("第 " + (currentIndex + 1) + " / " + TOTAL_QUESTIONS + " 题");
         tvQuestion.setText(q.getQuestionText());
-        etAnswer.setText("");
-        etAnswer.setEnabled(true);
+        answerBuffer.setLength(0);
+        tvAnswer.setText("");
         layoutResult.setVisibility(View.GONE);
         btnSubmit.setVisibility(View.VISIBLE);
         btnNext.setVisibility(View.GONE);
         isAnswered = false;
-        etAnswer.requestFocus();
     }
 
     private void submitAnswer() {
-        String input = etAnswer.getText().toString().trim();
+        String input = answerBuffer.toString().trim();
         if (TextUtils.isEmpty(input)) {
             Toast.makeText(this, "请输入答案", Toast.LENGTH_SHORT).show();
             return;
@@ -116,12 +130,15 @@ public class PracticeActivity extends AppCompatActivity {
         Question q = questions.get(currentIndex);
         boolean correct = (userAnswer == q.getAnswer());
         q.setCorrect(correct);
-        if (correct) correctCount++;
+        if (correct) {
+            correctCount++;
+        } else {
+            DatabaseHelper db = new DatabaseHelper(this);
+            db.saveWrongQuestion(q.getNum1(), q.getNum2());
+        }
 
         isAnswered = true;
-        etAnswer.setEnabled(false);
         layoutResult.setVisibility(View.VISIBLE);
-
         if (correct) {
             tvResult.setText("✓ 回答正确！");
             tvResult.setTextColor(getColor(android.R.color.holo_green_dark));
@@ -129,7 +146,6 @@ public class PracticeActivity extends AppCompatActivity {
             tvResult.setText("✗ 回答错误，正确答案是: " + q.getAnswer());
             tvResult.setTextColor(getColor(android.R.color.holo_red_dark));
         }
-
         btnSubmit.setVisibility(View.GONE);
         btnNext.setVisibility(View.VISIBLE);
         if (currentIndex == TOTAL_QUESTIONS - 1) {
