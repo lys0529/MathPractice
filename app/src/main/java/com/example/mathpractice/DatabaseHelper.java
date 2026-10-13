@@ -29,6 +29,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COL_W_NUM2 = "num2";
     private static final String COL_W_DATE = "date";
 
+    private static final String TABLE_SETTINGS = "settings";
+    private static final String COL_S_KEY = "key";
+    private static final String COL_S_VALUE = "value";
+
     public DatabaseHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
     }
@@ -50,12 +54,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_W_NUM2 + " INTEGER, " +
                 COL_W_DATE + " TEXT)";
         db.execSQL(createWrong);
+
+        String createSettings = "CREATE TABLE " + TABLE_SETTINGS + " (" +
+                COL_S_KEY + " TEXT PRIMARY KEY, " +
+                COL_S_VALUE + " TEXT)";
+        db.execSQL(createSettings);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_RECORDS);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_WRONG);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_SETTINGS);
         onCreate(db);
     }
 
@@ -112,7 +122,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
     }
 
-    // 全部错题（按时间倒序）
     public List<WrongQuestion> getAllWrongQuestions() {
         List<WrongQuestion> list = new ArrayList<>();
         SQLiteDatabase db = getReadableDatabase();
@@ -131,12 +140,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return list;
     }
 
-    // 按周统计
     public List<WrongStats> getWrongStatsByWeek() {
         return getWrongStats("%Y-%W", "周");
     }
 
-    // 按月统计
     public List<WrongStats> getWrongStatsByMonth() {
         return getWrongStats("%Y-%m", "月");
     }
@@ -172,6 +179,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = getWritableDatabase();
         db.delete(TABLE_WRONG, null, null);
         db.close();
+    }
+
+    // ============ 设置项（存密码） ============
+    public void setSetting(String key, String value) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COL_S_KEY, key);
+        values.put(COL_S_VALUE, value);
+        db.insertWithOnConflict(TABLE_SETTINGS, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        db.close();
+    }
+
+    public String getSetting(String key) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query(TABLE_SETTINGS, new String[]{COL_S_VALUE},
+                COL_S_KEY + "=?", new String[]{key}, null, null, null);
+        String value = null;
+        if (cursor.moveToFirst()) {
+            value = cursor.getString(0);
+        }
+        cursor.close();
+        db.close();
+        return value;
     }
 
     public static class DailyStats {
@@ -215,7 +245,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         public String getDisplayText() {
             if ("周".equals(label)) {
-                // period 格式是 "2025-42"
                 String[] parts = period.split("-");
                 if (parts.length == 2) {
                     int week = Integer.parseInt(parts[1]);
@@ -223,7 +252,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 }
                 return period;
             } else {
-                // period 格式是 "2025-10"
                 String[] parts = period.split("-");
                 if (parts.length == 2) {
                     int month = Integer.parseInt(parts[1]);
