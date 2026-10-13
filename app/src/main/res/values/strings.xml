@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">数学练习</string>
+    <string name="signature_text">果果爸爸出品</string>
 </resources>
