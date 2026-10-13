@@ -15,10 +15,16 @@ import java.util.List;
 
 public class WrongBookActivity extends AppCompatActivity {
 
-    private StatsAdapter adapter;
-    private DatabaseHelper db;
+    private static final int MODE_ALL = 0;
+    private static final int MODE_WEEK = 1;
+    private static final int MODE_MONTH = 2;
+
+    private RecyclerView recyclerView;
     private TextView tvEmpty;
-    private List<DatabaseHelper.WrongQuestion> data;
+    private Button btnModeAll, btnModeWeek, btnModeMonth;
+    private DatabaseHelper db;
+    private int currentMode = MODE_ALL;
+    private WrongAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,8 +33,18 @@ public class WrongBookActivity extends AppCompatActivity {
 
         db = new DatabaseHelper(this);
         tvEmpty = findViewById(R.id.tvEmpty);
-        RecyclerView recyclerView = findViewById(R.id.recyclerView);
+        recyclerView = findViewById(R.id.recyclerView);
+        btnModeAll = findViewById(R.id.btnModeAll);
+        btnModeWeek = findViewById(R.id.btnModeWeek);
+        btnModeMonth = findViewById(R.id.btnModeMonth);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new WrongAdapter();
+        recyclerView.setAdapter(adapter);
+
+        btnModeAll.setOnClickListener(v -> switchMode(MODE_ALL));
+        btnModeWeek.setOnClickListener(v -> switchMode(MODE_WEEK));
+        btnModeMonth.setOnClickListener(v -> switchMode(MODE_MONTH));
 
         findViewById(R.id.btnClearAll).setOnClickListener(v -> {
             new AlertDialog.Builder(this)
@@ -42,56 +58,122 @@ public class WrongBookActivity extends AppCompatActivity {
                     .show();
         });
 
-        data = db.getAllWrongQuestions();
-        adapter = new StatsAdapter();
-        recyclerView.setAdapter(adapter);
-        updateEmpty();
+        updateModeButtons();
+        loadData();
+    }
+
+    private void switchMode(int mode) {
+        currentMode = mode;
+        updateModeButtons();
+        loadData();
+    }
+
+    private void updateModeButtons() {
+        btnModeAll.setEnabled(currentMode != MODE_ALL);
+        btnModeWeek.setEnabled(currentMode != MODE_WEEK);
+        btnModeMonth.setEnabled(currentMode != MODE_MONTH);
     }
 
     private void loadData() {
-        data = db.getAllWrongQuestions();
-        adapter.notifyDataSetChanged();
+        switch (currentMode) {
+            case MODE_WEEK:
+                adapter.setStatsData(db.getWrongStatsByWeek());
+                break;
+            case MODE_MONTH:
+                adapter.setStatsData(db.getWrongStatsByMonth());
+                break;
+            default:
+                adapter.setQuestionData(db.getAllWrongQuestions());
+                break;
+        }
         updateEmpty();
     }
 
     private void updateEmpty() {
-        tvEmpty.setVisibility(data.isEmpty() ? View.VISIBLE : View.GONE);
+        tvEmpty.setVisibility(adapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
     }
 
-    class StatsAdapter extends RecyclerView.Adapter<StatsAdapter.VH> {
+    // ============ Adapter ============
+    class WrongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+        private static final int TYPE_QUESTION = 0;
+        private static final int TYPE_STATS = 1;
+
+        private List<DatabaseHelper.WrongQuestion> questions;
+        private List<DatabaseHelper.WrongStats> stats;
+
+        void setQuestionData(List<DatabaseHelper.WrongQuestion> data) {
+            this.questions = data;
+            this.stats = null;
+            notifyDataSetChanged();
+        }
+
+        void setStatsData(List<DatabaseHelper.WrongStats> data) {
+            this.stats = data;
+            this.questions = null;
+            notifyDataSetChanged();
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            return questions != null ? TYPE_QUESTION : TYPE_STATS;
+        }
+
         @NonNull
         @Override
-        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_wrong, parent, false);
-            return new VH(v);
+        public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            LayoutInflater inflater = LayoutInflater.from(parent.getContext());
+            if (viewType == TYPE_QUESTION) {
+                return new QuestionVH(inflater.inflate(R.layout.item_wrong, parent, false));
+            } else {
+                return new StatsVH(inflater.inflate(R.layout.item_wrong_stats, parent, false));
+            }
         }
 
         @Override
-        public void onBindViewHolder(@NonNull VH h, int position) {
-            DatabaseHelper.WrongQuestion w = data.get(position);
-            h.tvQuestion.setText(w.getQuestionText());
-            h.tvAnswer.setText("正确答案: " + w.getAnswer());
-            h.tvDate.setText(w.date);
-
-            h.btnDelete.setOnClickListener(v -> {
-                db.deleteWrongQuestion(w.id);
-                loadData();
-            });
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+            if (holder instanceof QuestionVH) {
+                DatabaseHelper.WrongQuestion w = questions.get(position);
+                QuestionVH h = (QuestionVH) holder;
+                h.tvQuestion.setText(w.getQuestionText());
+                h.tvAnswer.setText("正确答案: " + w.getAnswer());
+                h.tvDate.setText(w.date);
+                h.btnDelete.setOnClickListener(v -> {
+                    db.deleteWrongQuestion(w.id);
+                    loadData();
+                });
+            } else {
+                DatabaseHelper.WrongStats s = stats.get(position);
+                StatsVH h = (StatsVH) holder;
+                h.tvPeriod.setText(s.getDisplayText());
+                h.tvCount.setText("错题数: " + s.count + " 道");
+            }
         }
 
         @Override
-        public int getItemCount() { return data.size(); }
+        public int getItemCount() {
+            if (questions != null) return questions.size();
+            if (stats != null) return stats.size();
+            return 0;
+        }
 
-        class VH extends RecyclerView.ViewHolder {
+        class QuestionVH extends RecyclerView.ViewHolder {
             TextView tvQuestion, tvAnswer, tvDate;
             Button btnDelete;
-            VH(@NonNull View itemView) {
+            QuestionVH(@NonNull View itemView) {
                 super(itemView);
                 tvQuestion = itemView.findViewById(R.id.tvQuestion);
                 tvAnswer = itemView.findViewById(R.id.tvAnswer);
                 tvDate = itemView.findViewById(R.id.tvDate);
                 btnDelete = itemView.findViewById(R.id.btnDelete);
+            }
+        }
+
+        class StatsVH extends RecyclerView.ViewHolder {
+            TextView tvPeriod, tvCount;
+            StatsVH(@NonNull View itemView) {
+                super(itemView);
+                tvPeriod = itemView.findViewById(R.id.tvPeriod);
+                tvCount = itemView.findViewById(R.id.tvCount);
             }
         }
     }
