@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MathPractice" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <item name="colorPrimary">#90CAF9</item>
+        <item name="colorPrimaryVariant">#1565C0</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorSecondary">#80CBC4</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+    </style>
+</resources>
