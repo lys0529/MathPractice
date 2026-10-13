@@ -13,11 +13,13 @@ public class MainActivity extends AppCompatActivity {
 
         Button btnStart = findViewById(R.id.btnStart);
         Button btnStats = findViewById(R.id.btnStats);
+        Button btnWrong = findViewById(R.id.btnWrong);
 
         btnStart.setOnClickListener(v ->
                 startActivity(new Intent(this, PracticeActivity.class)));
-
         btnStats.setOnClickListener(v ->
                 startActivity(new Intent(this, StatsActivity.class)));
+        btnWrong.setOnClickListener(v ->
+                startActivity(new Intent(this, WrongBookActivity.class)));
     }
 }
