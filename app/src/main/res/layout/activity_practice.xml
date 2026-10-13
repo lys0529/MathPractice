@@ -119,4 +119,15 @@
             <Button android:id="@+id/btnBack" style="@style/KeypadBtn" android:text="←"/>
         </LinearLayout>
     </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/signature_text"
+        android:textColor="#000000"
+        android:alpha="0.5"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginTop="8dp"/>
+
 </LinearLayout>
