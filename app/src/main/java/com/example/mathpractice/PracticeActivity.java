@@ -19,16 +19,15 @@ public class PracticeActivity extends AppCompatActivity {
 
     private int totalQuestions = 10;
 
-    private TextView tvProgress, tvQuestion, tvTimer, tvResult, tvAnswer;
-    private Button btnSubmit, btnNext;
+    private TextView tvProgress, tvQuestion, tvTimer, tvAnswer;
+    private Button btnSubmit;
     private LinearLayout layoutResult;
 
     private final List<Question> questions = new ArrayList<>();
+    private final List<Long> userAnswers = new ArrayList<>();
     private int currentIndex = 0;
-    private int correctCount = 0;
     private long startTime;
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
-    private boolean isAnswered = false;
     private final StringBuilder answerBuffer = new StringBuilder();
 
     private final Runnable timerRunnable = new Runnable() {
@@ -51,18 +50,19 @@ public class PracticeActivity extends AppCompatActivity {
         tvProgress = findViewById(R.id.tvProgress);
         tvQuestion = findViewById(R.id.tvQuestion);
         tvTimer = findViewById(R.id.tvTimer);
-        tvResult = findViewById(R.id.tvResult);
         tvAnswer = findViewById(R.id.tvAnswer);
         btnSubmit = findViewById(R.id.btnSubmit);
-        btnNext = findViewById(R.id.btnNext);
         layoutResult = findViewById(R.id.layoutResult);
+
+        // 隐藏原来的结果区和下一题按钮，本版本不用它们
+        layoutResult.setVisibility(View.GONE);
+        findViewById(R.id.btnNext).setVisibility(View.GONE);
 
         int[] digitIds = {R.id.btn0, R.id.btn1, R.id.btn2, R.id.btn3, R.id.btn4,
                 R.id.btn5, R.id.btn6, R.id.btn7, R.id.btn8, R.id.btn9};
         for (int i = 0; i < digitIds.length; i++) {
             final String digit = String.valueOf(i);
             findViewById(digitIds[i]).setOnClickListener(v -> {
-                if (isAnswered) return;
                 if (answerBuffer.length() < 6) {
                     answerBuffer.append(digit);
                     tvAnswer.setText(answerBuffer.toString());
@@ -70,14 +70,12 @@ public class PracticeActivity extends AppCompatActivity {
             });
         }
         findViewById(R.id.btnBack).setOnClickListener(v -> {
-            if (isAnswered) return;
             if (answerBuffer.length() > 0) {
                 answerBuffer.deleteCharAt(answerBuffer.length() - 1);
                 tvAnswer.setText(answerBuffer.toString());
             }
         });
         findViewById(R.id.btnClear).setOnClickListener(v -> {
-            if (isAnswered) return;
             answerBuffer.setLength(0);
             tvAnswer.setText("");
         });
@@ -88,7 +86,6 @@ public class PracticeActivity extends AppCompatActivity {
         showQuestion();
 
         btnSubmit.setOnClickListener(v -> submitAnswer());
-        btnNext.setOnClickListener(v -> nextQuestion());
     }
 
     private void generateQuestions() {
@@ -110,10 +107,11 @@ public class PracticeActivity extends AppCompatActivity {
         tvQuestion.setText(q.getQuestionText());
         answerBuffer.setLength(0);
         tvAnswer.setText("");
-        layoutResult.setVisibility(View.GONE);
-        btnSubmit.setVisibility(View.VISIBLE);
-        btnNext.setVisibility(View.GONE);
-        isAnswered = false;
+        if (currentIndex == totalQuestions - 1) {
+            btnSubmit.setText("提交并查看结果");
+        } else {
+            btnSubmit.setText("提交");
+        }
     }
 
     private void submitAnswer() {
@@ -130,33 +128,7 @@ public class PracticeActivity extends AppCompatActivity {
             return;
         }
 
-        Question q = questions.get(currentIndex);
-        boolean correct = (userAnswer == q.getAnswer());
-        q.setCorrect(correct);
-        if (correct) {
-            correctCount++;
-        } else {
-            DatabaseHelper db = new DatabaseHelper(this);
-            db.saveWrongQuestion(q.getNum1(), q.getNum2());
-        }
-
-        isAnswered = true;
-        layoutResult.setVisibility(View.VISIBLE);
-        if (correct) {
-            tvResult.setText("✓ 回答正确！");
-            tvResult.setTextColor(getColor(android.R.color.holo_green_dark));
-        } else {
-            tvResult.setText("✗ 回答错误，正确答案是: " + q.getAnswer());
-            tvResult.setTextColor(getColor(android.R.color.holo_red_dark));
-        }
-        btnSubmit.setVisibility(View.GONE);
-        btnNext.setVisibility(View.VISIBLE);
-        if (currentIndex == totalQuestions - 1) {
-            btnNext.setText("查看结果");
-        }
-    }
-
-    private void nextQuestion() {
+        userAnswers.add(userAnswer);
         currentIndex++;
         showQuestion();
     }
@@ -165,27 +137,67 @@ public class PracticeActivity extends AppCompatActivity {
         timerHandler.removeCallbacks(timerRunnable);
         int elapsedSeconds = (int) ((System.currentTimeMillis() - startTime) / 1000);
 
+        // 计算正确数、保存错题
+        int correctCount = 0;
+        StringBuilder detail = new StringBuilder();
         DatabaseHelper db = new DatabaseHelper(this);
+
+        for (int i = 0; i < questions.size(); i++) {
+            Question q = questions.get(i);
+            long ua = (i < userAnswers.size()) ? userAnswers.get(i) : -1;
+            boolean correct = (ua == q.getAnswer());
+            q.setCorrect(correct);
+            if (correct) {
+                correctCount++;
+            } else {
+                db.saveWrongQuestion(q.getNum1(), q.getNum2());
+            }
+            // 拼结果明细
+            detail.append(i + 1).append(". ")
+                    .append(q.getQuestionText().replace(" = ?", ""))
+                    .append(" = ")
+                    .append(q.getAnswer())
+                    .append("  ");
+            if (correct) {
+                detail.append("✓");
+            } else {
+                detail.append("✗ 你答: ").append(ua >= 0 ? ua : "未答");
+            }
+            detail.append("\n");
+        }
+
         db.saveRecord(totalQuestions, correctCount, elapsedSeconds);
 
+        final int finalCorrect = correctCount;
         new AlertDialog.Builder(this)
                 .setTitle("练习完成")
                 .setMessage("总题数: " + totalQuestions + "\n" +
-                        "正确数: " + correctCount + "\n" +
-                        "正确率: " + (correctCount * 100 / totalQuestions) + "%\n" +
+                        "正确数: " + finalCorrect + "\n" +
+                        "正确率: " + (finalCorrect * 100 / totalQuestions) + "%\n" +
                         "用时: " + formatTime(elapsedSeconds))
                 .setCancelable(false)
-                .setPositiveButton("返回首页", (d, w) -> finish())
-                .setNegativeButton("再练一次", (d, w) -> {
-                    questions.clear();
-                    currentIndex = 0;
-                    correctCount = 0;
-                    generateQuestions();
-                    startTime = System.currentTimeMillis();
-                    timerHandler.post(timerRunnable);
-                    showQuestion();
-                })
+                .setPositiveButton("查看详情", (d, w) -> showDetailDialog(detail.toString()))
+                .setNeutralButton("再练一次", (d, w) -> restart())
+                .setNegativeButton("返回首页", (d, w) -> finish())
                 .show();
+    }
+
+    private void showDetailDialog(String detail) {
+        new AlertDialog.Builder(this)
+                .setTitle("答题详情")
+                .setMessage(detail)
+                .setPositiveButton("确定", null)
+                .show();
+    }
+
+    private void restart() {
+        questions.clear();
+        userAnswers.clear();
+        currentIndex = 0;
+        generateQuestions();
+        startTime = System.currentTimeMillis();
+        timerHandler.post(timerRunnable);
+        showQuestion();
     }
 
     private String formatTime(int seconds) {
