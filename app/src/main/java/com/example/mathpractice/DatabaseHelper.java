@@ -112,6 +112,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
     }
 
+    // 全部错题（按时间倒序）
     public List<WrongQuestion> getAllWrongQuestions() {
         List<WrongQuestion> list = new ArrayList<>();
         SQLiteDatabase db = getReadableDatabase();
@@ -124,6 +125,37 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             w.num2 = cursor.getInt(cursor.getColumnIndexOrThrow(COL_W_NUM2));
             w.date = cursor.getString(cursor.getColumnIndexOrThrow(COL_W_DATE));
             list.add(w);
+        }
+        cursor.close();
+        db.close();
+        return list;
+    }
+
+    // 按周统计
+    public List<WrongStats> getWrongStatsByWeek() {
+        return getWrongStats("%Y-%W", "周");
+    }
+
+    // 按月统计
+    public List<WrongStats> getWrongStatsByMonth() {
+        return getWrongStats("%Y-%m", "月");
+    }
+
+    private List<WrongStats> getWrongStats(String format, String label) {
+        List<WrongStats> list = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+        String query = "SELECT strftime('" + format + "', " + COL_W_DATE + ") as period" +
+                ", COUNT(*) as cnt" +
+                " FROM " + TABLE_WRONG +
+                " GROUP BY period" +
+                " ORDER BY period DESC";
+        Cursor cursor = db.rawQuery(query, null);
+        while (cursor.moveToNext()) {
+            WrongStats s = new WrongStats();
+            s.period = cursor.getString(0);
+            s.count = cursor.getInt(1);
+            s.label = label;
+            list.add(s);
         }
         cursor.close();
         db.close();
@@ -173,6 +205,32 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         public long getAnswer() {
             return (long) num1 * num2;
+        }
+    }
+
+    public static class WrongStats {
+        public String period;
+        public int count;
+        public String label;
+
+        public String getDisplayText() {
+            if ("周".equals(label)) {
+                // period 格式是 "2025-42"
+                String[] parts = period.split("-");
+                if (parts.length == 2) {
+                    int week = Integer.parseInt(parts[1]);
+                    return parts[0] + "年 第" + week + "周";
+                }
+                return period;
+            } else {
+                // period 格式是 "2025-10"
+                String[] parts = period.split("-");
+                if (parts.length == 2) {
+                    int month = Integer.parseInt(parts[1]);
+                    return parts[0] + "年 " + month + "月";
+                }
+                return period;
+            }
         }
     }
 }
