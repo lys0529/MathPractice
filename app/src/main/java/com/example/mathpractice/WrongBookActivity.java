@@ -1,23 +1,33 @@
 package com.example.mathpractice;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
+import android.text.InputType;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 public class WrongBookActivity extends AppCompatActivity {
 
     private static final int MODE_ALL = 0;
     private static final int MODE_WEEK = 1;
     private static final int MODE_MONTH = 2;
+    private static final String KEY_PASSWORD = "clear_password";
 
     private RecyclerView recyclerView;
     private TextView tvEmpty;
@@ -46,17 +56,7 @@ public class WrongBookActivity extends AppCompatActivity {
         btnModeWeek.setOnClickListener(v -> switchMode(MODE_WEEK));
         btnModeMonth.setOnClickListener(v -> switchMode(MODE_MONTH));
 
-        findViewById(R.id.btnClearAll).setOnClickListener(v -> {
-            new AlertDialog.Builder(this)
-                    .setTitle("清空错题本")
-                    .setMessage("确定要清空所有错题吗？")
-                    .setPositiveButton("清空", (d, w) -> {
-                        db.clearWrongQuestions();
-                        loadData();
-                    })
-                    .setNegativeButton("取消", null)
-                    .show();
-        });
+        findViewById(R.id.btnClearAll).setOnClickListener(v -> onClearAllClicked());
 
         updateModeButtons();
         loadData();
@@ -91,6 +91,129 @@ public class WrongBookActivity extends AppCompatActivity {
 
     private void updateEmpty() {
         tvEmpty.setVisibility(adapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
+    }
+
+    // ============ 清空错题本的验证流程 ============
+    private void onClearAllClicked() {
+        String savedPassword = db.getSetting(KEY_PASSWORD);
+        if (savedPassword == null) {
+            // 还没设置过密码 → 先设置
+            showSetPasswordDialog();
+        } else {
+            // 已设置过 → 先尝试指纹，指纹不行再输密码
+            tryBiometricOrPassword(savedPassword);
+        }
+    }
+
+    private void showSetPasswordDialog() {
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        input.setHint("请输入 4-8 位数字密码");
+
+        new AlertDialog.Builder(this)
+                .setTitle("设置清空密码")
+                .setMessage("首次清空错题本，请设置一个密码")
+                .setView(input)
+                .setCancelable(false)
+                .setPositiveButton("确定", null)
+                .setNegativeButton("取消", null)
+                .create()
+                .show();
+        // 用 show 后再 set 监听，避免输入为空时对话框自动关闭
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("设置清空密码")
+                .setMessage("首次清空错题本，请设置一个密码（4-8 位数字）")
+                .setView(input)
+                .setCancelable(false)
+                .setPositiveButton("确定", null)
+                .setNegativeButton("取消", null)
+                .create();
+        dialog.show();
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String pwd = input.getText().toString().trim();
+            if (!pwd.matches("\\d{4,8}")) {
+                Toast.makeText(this, "请输入 4-8 位数字", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            db.setSetting(KEY_PASSWORD, pwd);
+            Toast.makeText(this, "密码设置成功", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+            doClear();
+        });
+    }
+
+    private void tryBiometricOrPassword(String savedPassword) {
+        BiometricManager bm = BiometricManager.from(this);
+        int can = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
+        if (can == BiometricManager.BIOMETRIC_SUCCESS) {
+            // 有指纹/生物识别 → 弹指纹
+            Executor executor = ContextCompat.getMainExecutor(this);
+            BiometricPrompt prompt = new BiometricPrompt(this, executor,
+                    new BiometricPrompt.AuthenticationCallback() {
+                        @Override
+                        public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                            doClear();
+                        }
+
+                        @Override
+                        public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                            // 用户取消或出错，退回密码输入
+                            if (errorCode != BiometricPrompt.ERROR_USER_CANCELED
+                                    && errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                                    && errorCode != BiometricPrompt.ERROR_CANCELED) {
+                                showPasswordDialog(savedPassword);
+                            }
+                        }
+
+                        @Override
+                        public void onAuthenticationFailed() {
+                            // 单次识别失败，系统会自动重试，这里不用处理
+                        }
+                    });
+            BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("验证指纹")
+                    .setSubtitle("验证通过后可清空错题本")
+                    .setNegativeButtonText("使用密码")
+                    .build();
+            prompt.authenticate(info);
+        } else {
+            // 没指纹 → 直接输密码
+            showPasswordDialog(savedPassword);
+        }
+    }
+
+    private void showPasswordDialog(String savedPassword) {
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        input.setHint("请输入密码");
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("验证密码")
+                .setMessage("请输入清空密码")
+                .setView(input)
+                .setPositiveButton("确定", null)
+                .setNegativeButton("取消", null)
+                .create();
+        dialog.show();
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String pwd = input.getText().toString().trim();
+            if (TextUtils.isEmpty(pwd)) {
+                Toast.makeText(this, "请输入密码", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (pwd.equals(savedPassword)) {
+                dialog.dismiss();
+                doClear();
+            } else {
+                Toast.makeText(this, "密码错误", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void doClear() {
+        db.clearWrongQuestions();
+        loadData();
+        Toast.makeText(this, "错题本已清空", Toast.LENGTH_SHORT).show();
     }
 
     // ============ Adapter ============
