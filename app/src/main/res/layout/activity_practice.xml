@@ -20,7 +20,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="16sp"
-            android:textColor="#1976D2"/>
+            android:textColor="?attr/colorPrimary"/>
     </LinearLayout>
 
     <TextView
@@ -30,19 +30,19 @@
         android:textSize="36sp"
         android:textStyle="bold"
         android:gravity="center"
-        android:layout_marginTop="48dp"
-        android:layout_marginBottom="32dp"/>
+        android:layout_marginTop="32dp"
+        android:layout_marginBottom="16dp"/>
 
-    <EditText
-        android:id="@+id/etAnswer"
+    <TextView
+        android:id="@+id/tvAnswer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:inputType="number"
-        android:hint="输入答案"
-        android:textSize="24sp"
+        android:minHeight="64dp"
+        android:textSize="32sp"
         android:gravity="center"
-        android:imeOptions="actionDone"
-        android:maxLength="6"/>
+        android:hint="请输入答案"
+        android:background="?attr/selectableItemBackground"
+        android:padding="8dp"/>
 
     <Button
         android:id="@+id/btnSubmit"
@@ -50,7 +50,7 @@
         android:layout_height="wrap_content"
         android:text="提交"
         android:textSize="18sp"
-        android:layout_marginTop="16dp"/>
+        android:layout_marginTop="8dp"/>
 
     <LinearLayout
         android:id="@+id/layoutResult"
@@ -58,21 +58,65 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone">
-
         <TextView
             android:id="@+id/tvResult"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="20sp"
             android:gravity="center"
-            android:layout_marginTop="16dp"/>
-
+            android:layout_marginTop="12dp"/>
         <Button
             android:id="@+id/btnNext"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="下一题"
             android:textSize="18sp"
-            android:layout_marginTop="16dp"/>
+            android:layout_marginTop="12dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/keypad"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginTop="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <Button android:id="@+id/btn1" style="@style/KeypadBtn" android:text="1"/>
+            <Button android:id="@+id/btn2" style="@style/KeypadBtn" android:text="2"/>
+            <Button android:id="@+id/btn3" style="@style/KeypadBtn" android:text="3"/>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <Button android:id="@+id/btn4" style="@style/KeypadBtn" android:text="4"/>
+            <Button android:id="@+id/btn5" style="@style/KeypadBtn" android:text="5"/>
+            <Button android:id="@+id/btn6" style="@style/KeypadBtn" android:text="6"/>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <Button android:id="@+id/btn7" style="@style/KeypadBtn" android:text="7"/>
+            <Button android:id="@+id/btn8" style="@style/KeypadBtn" android:text="8"/>
+            <Button android:id="@+id/btn9" style="@style/KeypadBtn" android:text="9"/>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <Button android:id="@+id/btnClear" style="@style/KeypadBtn" android:text="清空"/>
+            <Button android:id="@+id/btn0" style="@style/KeypadBtn" android:text="0"/>
+            <Button android:id="@+id/btnBack" style="@style/KeypadBtn" android:text="←"/>
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>
