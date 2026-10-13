@@ -17,7 +17,7 @@ import java.util.Random;
 
 public class PracticeActivity extends AppCompatActivity {
 
-    private static final int TOTAL_QUESTIONS = 10;
+    private int totalQuestions = 10;
 
     private TextView tvProgress, tvQuestion, tvTimer, tvResult, tvAnswer;
     private Button btnSubmit, btnNext;
@@ -44,6 +44,9 @@ public class PracticeActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_practice);
+
+        totalQuestions = getIntent().getIntExtra("count", 10);
+        if (totalQuestions < 1) totalQuestions = 1;
 
         tvProgress = findViewById(R.id.tvProgress);
         tvQuestion = findViewById(R.id.tvQuestion);
@@ -90,7 +93,7 @@ public class PracticeActivity extends AppCompatActivity {
 
     private void generateQuestions() {
         Random random = new Random();
-        for (int i = 0; i < TOTAL_QUESTIONS; i++) {
+        for (int i = 0; i < totalQuestions; i++) {
             int num1 = 100 + random.nextInt(900);
             int num2 = 10 + random.nextInt(90);
             questions.add(new Question(num1, num2));
@@ -98,12 +101,12 @@ public class PracticeActivity extends AppCompatActivity {
     }
 
     private void showQuestion() {
-        if (currentIndex >= TOTAL_QUESTIONS) {
+        if (currentIndex >= totalQuestions) {
             finishPractice();
             return;
         }
         Question q = questions.get(currentIndex);
-        tvProgress.setText("第 " + (currentIndex + 1) + " / " + TOTAL_QUESTIONS + " 题");
+        tvProgress.setText("第 " + (currentIndex + 1) + " / " + totalQuestions + " 题");
         tvQuestion.setText(q.getQuestionText());
         answerBuffer.setLength(0);
         tvAnswer.setText("");
@@ -148,7 +151,7 @@ public class PracticeActivity extends AppCompatActivity {
         }
         btnSubmit.setVisibility(View.GONE);
         btnNext.setVisibility(View.VISIBLE);
-        if (currentIndex == TOTAL_QUESTIONS - 1) {
+        if (currentIndex == totalQuestions - 1) {
             btnNext.setText("查看结果");
         }
     }
@@ -163,13 +166,13 @@ public class PracticeActivity extends AppCompatActivity {
         int elapsedSeconds = (int) ((System.currentTimeMillis() - startTime) / 1000);
 
         DatabaseHelper db = new DatabaseHelper(this);
-        db.saveRecord(TOTAL_QUESTIONS, correctCount, elapsedSeconds);
+        db.saveRecord(totalQuestions, correctCount, elapsedSeconds);
 
         new AlertDialog.Builder(this)
                 .setTitle("练习完成")
-                .setMessage("总题数: " + TOTAL_QUESTIONS + "\n" +
+                .setMessage("总题数: " + totalQuestions + "\n" +
                         "正确数: " + correctCount + "\n" +
-                        "正确率: " + (correctCount * 100 / TOTAL_QUESTIONS) + "%\n" +
+                        "正确率: " + (correctCount * 100 / totalQuestions) + "%\n" +
                         "用时: " + formatTime(elapsedSeconds))
                 .setCancelable(false)
                 .setPositiveButton("返回首页", (d, w) -> finish())
