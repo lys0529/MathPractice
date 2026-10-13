@@ -12,13 +12,38 @@
         android:text="三位数 × 两位数 练习"
         android:textSize="26sp"
         android:textStyle="bold"
-        android:layout_marginBottom="48dp"/>
+        android:layout_marginBottom="32dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="出题数量："
+            android:textSize="18sp"/>
+
+        <EditText
+            android:id="@+id/etCount"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="10"
+            android:textSize="18sp"
+            android:gravity="center"
+            android:maxLength="3"/>
+    </LinearLayout>
 
     <Button
         android:id="@+id/btnStart"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="开始练习 (10题)"
+        android:text="开始练习"
         android:textSize="18sp"
         android:padding="16dp"
         android:layout_marginBottom="16dp"/>
