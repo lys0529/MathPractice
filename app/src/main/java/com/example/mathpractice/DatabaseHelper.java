@@ -23,6 +23,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COL_CORRECT = "correct";
     private static final String COL_TIME_SECONDS = "time_seconds";
 
+    private static final String TABLE_WRONG = "wrong_questions";
+    private static final String COL_W_ID = "id";
+    private static final String COL_W_NUM1 = "num1";
+    private static final String COL_W_NUM2 = "num2";
+    private static final String COL_W_DATE = "date";
+
     public DatabaseHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
     }
@@ -37,11 +43,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 COL_CORRECT + " INTEGER, " +
                 COL_TIME_SECONDS + " INTEGER)";
         db.execSQL(createTable);
+
+        String createWrong = "CREATE TABLE " + TABLE_WRONG + " (" +
+                COL_W_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                COL_W_NUM1 + " INTEGER, " +
+                COL_W_NUM2 + " INTEGER, " +
+                COL_W_DATE + " TEXT)";
+        db.execSQL(createWrong);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_RECORDS);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_WRONG);
         onCreate(db);
     }
 
@@ -86,6 +100,48 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return list;
     }
 
+    public void saveWrongQuestion(int num1, int num2) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                .format(new Date());
+        values.put(COL_W_NUM1, num1);
+        values.put(COL_W_NUM2, num2);
+        values.put(COL_W_DATE, today);
+        db.insert(TABLE_WRONG, null, values);
+        db.close();
+    }
+
+    public List<WrongQuestion> getAllWrongQuestions() {
+        List<WrongQuestion> list = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query(TABLE_WRONG, null, null, null,
+                null, null, COL_W_ID + " DESC");
+        while (cursor.moveToNext()) {
+            WrongQuestion w = new WrongQuestion();
+            w.id = cursor.getInt(cursor.getColumnIndexOrThrow(COL_W_ID));
+            w.num1 = cursor.getInt(cursor.getColumnIndexOrThrow(COL_W_NUM1));
+            w.num2 = cursor.getInt(cursor.getColumnIndexOrThrow(COL_W_NUM2));
+            w.date = cursor.getString(cursor.getColumnIndexOrThrow(COL_W_DATE));
+            list.add(w);
+        }
+        cursor.close();
+        db.close();
+        return list;
+    }
+
+    public void deleteWrongQuestion(int id) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_WRONG, COL_W_ID + "=?", new String[]{String.valueOf(id)});
+        db.close();
+    }
+
+    public void clearWrongQuestions() {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_WRONG, null, null);
+        db.close();
+    }
+
     public static class DailyStats {
         public String date;
         public int sessions;
@@ -102,6 +158,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             int min = totalTimeSeconds / 60;
             int sec = totalTimeSeconds % 60;
             return min + "分" + sec + "秒";
+        }
+    }
+
+    public static class WrongQuestion {
+        public int id;
+        public int num1;
+        public int num2;
+        public String date;
+
+        public String getQuestionText() {
+            return num1 + " × " + num2 + " = ?";
+        }
+
+        public long getAnswer() {
+            return (long) num1 * num2;
         }
     }
 }
