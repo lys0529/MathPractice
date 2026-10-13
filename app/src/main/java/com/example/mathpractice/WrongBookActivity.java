@@ -97,10 +97,8 @@ public class WrongBookActivity extends AppCompatActivity {
     private void onClearAllClicked() {
         String savedPassword = db.getSetting(KEY_PASSWORD);
         if (savedPassword == null) {
-            // 还没设置过密码 → 先设置
             showSetPasswordDialog();
         } else {
-            // 已设置过 → 先尝试指纹，指纹不行再输密码
             tryBiometricOrPassword(savedPassword);
         }
     }
@@ -110,16 +108,6 @@ public class WrongBookActivity extends AppCompatActivity {
         input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
         input.setHint("请输入 4-8 位数字密码");
 
-        new AlertDialog.Builder(this)
-                .setTitle("设置清空密码")
-                .setMessage("首次清空错题本，请设置一个密码")
-                .setView(input)
-                .setCancelable(false)
-                .setPositiveButton("确定", null)
-                .setNegativeButton("取消", null)
-                .create()
-                .show();
-        // 用 show 后再 set 监听，避免输入为空时对话框自动关闭
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("设置清空密码")
                 .setMessage("首次清空错题本，请设置一个密码（4-8 位数字）")
@@ -146,7 +134,6 @@ public class WrongBookActivity extends AppCompatActivity {
         BiometricManager bm = BiometricManager.from(this);
         int can = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
         if (can == BiometricManager.BIOMETRIC_SUCCESS) {
-            // 有指纹/生物识别 → 弹指纹
             Executor executor = ContextCompat.getMainExecutor(this);
             BiometricPrompt prompt = new BiometricPrompt(this, executor,
                     new BiometricPrompt.AuthenticationCallback() {
@@ -157,7 +144,6 @@ public class WrongBookActivity extends AppCompatActivity {
 
                         @Override
                         public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                            // 用户取消或出错，退回密码输入
                             if (errorCode != BiometricPrompt.ERROR_USER_CANCELED
                                     && errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON
                                     && errorCode != BiometricPrompt.ERROR_CANCELED) {
@@ -167,7 +153,6 @@ public class WrongBookActivity extends AppCompatActivity {
 
                         @Override
                         public void onAuthenticationFailed() {
-                            // 单次识别失败，系统会自动重试，这里不用处理
                         }
                     });
             BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
@@ -177,7 +162,6 @@ public class WrongBookActivity extends AppCompatActivity {
                     .build();
             prompt.authenticate(info);
         } else {
-            // 没指纹 → 直接输密码
             showPasswordDialog(savedPassword);
         }
     }
